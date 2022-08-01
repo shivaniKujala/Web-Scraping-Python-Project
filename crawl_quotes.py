@@ -11,12 +11,15 @@ html_content = request.content
 soup = BeautifulSoup(html_content,"html.parser") #Converting into Parsed HTML
 
 #print(soup.prettify())
-quote_elements = soup.find_all("span", class_ = "tag-item")
-#print(quote_elements)
+
+#Fetching anchor tags of quotes
+tag_elements_in_html_content = soup.find_all("span", class_ = "tag-item")
+
 
 data = []   #A list to store quotes
 
-# Pagingation: Fetching quotes from next page also
+# Fetching quotes from next page for each_tag =>maximum pages for each_tag element having only two pages
+# Here using while loop to to get the data from next page of each_tag
 def scrape_page(link_url):
     max_pages = 2
     current_page = 1
@@ -29,32 +32,33 @@ def scrape_page(link_url):
         soup_raw_html = BeautifulSoup(raw_html.text,"html.parser")
         #print(soup_raw_html.prettify())
 
-        quotes = soup.find("div" , class_="quote")
-        summary_quote = quotes.span.text
-        author_name = quotes.select("small")
-        tags = quotes.find("div",class_="tags")
-        tag = tags.find_all('a')
+        for quotes in soup.find_all("div" , class_="quote"):
+            summary_quote = quotes.span.text
+            #print(summary_quote)
 
-        for each_tag in tag:
-            print(each_tag.text)
+            author_name = quotes.select("small")
+            #print(author_name)
 
-
-
+            tags = quotes.find("div" , class_="tags")
+            anchor_tags = tags.find_all("a")
+            #for i in anchor_tags:
+                #print(i.text)
 
         current_page += 1
 
 
 
-
-def get_quotes_each_element(each_element):
-    link = each_element.select_one('.tag-item a')["href"]
-    string_link = each_element.a.text
-    link_url = "http://quotes.toscrape.com" + link
+#
+def making_link_for_tag_elements(each_tag_element):
+    link = each_tag_element.select_one('.tag-item a')["href"]
+    string_link = each_tag_element.a.text
+    link_url = "http://quotes.toscrape.com" + link # Fetching url for all tag elements to scrape data
     #print(link_url)
     scrape_page(link_url)
 
 
 
-
-for each_element in quote_elements:
-    get_quotes_each_element(each_element)
+# Getting tag elements with their links to make url to fetch data in next pages => Iteration makes every tag element
+# availble to make linke to extract data from HTML
+for each_tag_element in tag_elements_in_html_content:
+    making_link_for_tag_elements(each_tag_element)
