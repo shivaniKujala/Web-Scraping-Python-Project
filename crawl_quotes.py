@@ -156,7 +156,7 @@ for each_author_inform in list_of_authors:
 data = dict()
 data["quotes"] = quotes_data
 data["author"] = authors_data
-print(data)
+
 
 
 #Saving data in a file
