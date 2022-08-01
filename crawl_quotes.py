@@ -1,5 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
+import json
+
 
 #Fetch HTML content using url
 url = "http://quotes.toscrape.com/"
@@ -15,45 +17,17 @@ soup = BeautifulSoup(html_content,"html.parser") #Converting into Parsed HTML
 #Fetching anchor tags of quotes
 tag_elements_in_html_content = soup.find_all("span", class_ = "tag-item")
 
-
+author_names_list = []
 quotes_data = []
 authors_data = []  #list of authors information
 
-#Fetching authors information from each_pages in HTML
-def making_authors_information_from_html_page(link_url):
-    max_page = 2
-    current_page = 1
 
-    while current_page <= max_page:
-        request_link_url = requests.get(link_url)
-        soup_link_url = BeautifulSoup(request_link_url.content , "html.parser")
-        #print(soup_link_url.prettify())
-
-        author = {}
-        finding_parent_element = soup.find("div" , class_="quote")
-        author_row = finding_parent_element.find("span")
-        author_link = finding_parent_element.find("a")['href']
-        author_link_to_get_html = "http://quotes.toscrape.com" + author_link + "/"
-        #print(author_link_to_get_html)
-
-        #Fetching author information from author_link
-
-        get_author_information = requests.get(author_link_to_get_html)
-        soup_author_information = BeautifulSoup(get_author_information.content , "html.parser")
-        #print(soup_author_information.prettify())
-
-
-        #Finding Author Details in Author_description_link
-        table_author = soup.find("div", class_="author_details")
-        #print(table_author)
-
-        current_page += 1
 
 # Fetching quotes from next page for each_tag =>maximum pages for each_tag element having only two pages
 # Here using while loop to to get the data from next page of
 
 
-def scrape_page(link_url, quotes_data):
+def scrape_page(link_url, quotes_data,author_names_list):
 
     max_pages = 2
     current_page = 1
@@ -80,7 +54,13 @@ def scrape_page(link_url, quotes_data):
 
             author_name = quotes.select_one("small")
             #print(author_name.string)
-            each_quote["author"] = str(author_name.string)
+            each_quote["author"] = author_name.string
+            name = author_name.string
+            author_names_list.append((name))
+
+
+
+
 
 
             tags = quotes.find("div" , class_="tags")
@@ -103,14 +83,83 @@ def making_link_for_tag_elements(each_tag_element):
     link = each_tag_element.select_one('.tag-item a')["href"]
     string_link = each_tag_element.a.text
     link_url = "http://quotes.toscrape.com" + link # Fetching url for all tag elements to scrape data
-    making_authors_information_from_html_page(link_url)
-    scrape_page(link_url,quotes_data)
 
+    scrape_page(link_url,quotes_data,author_names_list)
+
+def get_unique_author_name_to_fetch_html(unique_author_names):
+    list_links = []
+    for i in unique_author_names:
+        result = ''
+        update = i.split(" ")
+        for i in update:
+            if '.' in i:
+                res = ''
+                for j in i:
+                    if j == ".":
+                        res += "-"
+                    else:
+                        res += j
+                # print(res)
+                result += res
+            elif "'" in i:
+                r = ''
+                for k in i:
+                    if k == "'":
+                        continue
+                    r += k
+                result += r
+            else:
+                result += i + "-"
+        list_links.append(result)
+    updated_name_list = []
+    for p in list_links:
+        length_ = len(p)
+        updated_name = p[:length_ - 1]
+        updated_name_list.append(updated_name)
+    return updated_name_list
 
 
 # Getting tag elements with their links to make url to fetch data in next pages => Iteration makes every tag element
-# availble to make linke to extract data from HTML
+# availble to make links to extract data from HTML
 for each_tag_element in tag_elements_in_html_content:
     making_link_for_tag_elements(each_tag_element)
 
-print(quotes_data)
+unique_author_names = list(set(author_names_list))
+
+# Get list_of_unique_author_names in string format in order to put in link to get parsed HTML
+
+list_of_authors = get_unique_author_name_to_fetch_html(unique_author_names)
+
+
+# Fetch the author information by iterating the list_of_authors
+authors_data = []
+for each_author_inform in list_of_authors:
+    information = dict()
+    url = "http://quotes.toscrape.com/author/" + each_author_inform + "/"
+
+    request_url = requests.get(url)
+    soup = BeautifulSoup(request_url.content,"html.parser")
+
+    author_details = soup.find("div", "author-details")
+    author_name = each_author_inform.split('-')
+    name = " ".join(author_name)
+
+
+    author_born_location = author_details.p
+    list_of_born_location = author_born_location.select("span")
+
+    information['name'] = name
+    information['born'] = list_of_born_location[0].text + "," + list_of_born_location[1].text
+    information['reference'] = url
+    authors_data.append(information)
+
+data = dict()
+data["quotes"] = quotes_data
+data["author"] = authors_data
+#print(data)
+
+
+#Saving data in a file
+
+with open("quotes.toscrape.json","w") as f:
+    json.dump(data,f)
